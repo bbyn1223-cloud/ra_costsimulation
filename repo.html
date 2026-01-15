@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserve Any | ROI診断レポート</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --navy: #1f3864; --gold-bg: #fffdef; --accent-red: #c00000; --light-gray: #f8f9fa; --creation-blue: #0070c0; }
+        
+        body { font-family: "游ゴシック", "Yu Gothic", sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        header { background: var(--navy); color: white; padding: 25px; text-align: center; margin-bottom: 30px; border-radius: 4px; }
+        h1 { margin: 0; font-size: 26px; letter-spacing: 3px; }
+        h2 { font-size: 18px; color: var(--navy); border-left: 6px solid var(--navy); padding-left: 15px; margin: 30px 0 15px 0; }
+        
+        .client-section { margin-bottom: 30px; display: flex; align-items: center; border-bottom: 2px solid var(--navy); padding-bottom: 8px; }
+        .client-name { border: none; font-size: 1.4em; width: 100%; outline: none; font-weight: bold; background: transparent; }
+        
+        .calc-grid { display: grid; grid-template-columns: 340px 1fr; gap: 30px; margin-top: 20px; }
+        .input-group { margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }
+        label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 6px; color: #555; }
+        
+        .rate-inputs { background: #f1f4f9; padding: 12px; border-radius: 8px; margin-top: 10px; border: 1px solid #d0d7e5; }
+        .rate-label { font-size: 11px; color: var(--navy); font-weight: bold; display: block; margin-bottom: 8px; text-align: center; }
+        
+        input[type="range"] { width: 100%; accent-color: var(--navy); }
+        input[type="number"], select { width: 95px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        select { width: 100%; }
+        .num-wrap { display: flex; justify-content: flex-end; align-items: center; gap: 5px; margin-top: 5px; }
+
+        .spec-box { background: var(--light-gray); padding: 12px; border-radius: 6px; border: 1px solid #eee; margin-top: 10px; font-size: 12px; text-align: center; line-height: 1.5;}
+        
+        .result-side { display: flex; flex-direction: column; gap: 12px; }
+        .chart-box { background: #fff; border: 1px solid #f0f0f0; padding: 12px; border-radius: 6px; position: relative; }
+        .chart-title { font-size: 11px; font-weight: bold; color: var(--navy); margin-bottom: 5px; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 3px; }
+        .canvas-wrapper { height: 110px; position: relative; }
+        .canvas-wrapper.tall { height: 180px; }
+
+        .summary-box { border: 2px solid var(--navy); padding: 15px; border-radius: 8px; background: #fff; position: relative; }
+        .res-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .res-val { font-weight: bold; font-size: 1.1em; }
+        .total-saving { border-top: 2px dashed #eee; padding-top: 10px; color: var(--creation-blue); margin-top: 5px; }
+        .roi-badge { position: absolute; top: -12px; right: 20px; background: var(--accent-red); color: white; padding: 4px 15px; font-size: 13px; font-weight: bold; border-radius: 20px; }
+
+        .solution-area { background: #fff; border: 1px solid var(--navy); padding: 25px; border-radius: 8px; }
+        .sol-item { font-size: 14px; margin-bottom: 25px; line-height: 1.6; border-bottom: 1px dotted #ccc; padding-bottom: 15px; }
+        
+        .print-btn { background: var(--navy); color: white; border: none; padding: 18px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 30px; font-size: 17px; }
+
+        @media print { 
+            @page { size: A4 portrait; margin: 10mm; }
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; width: 100%; padding: 0; margin: 0; }
+            .print-btn, input[type="range"] { display: none !important; }
+            #section-phase3 { break-before: page; page-break-before: always; padding-top: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header><h1>OFFICE OPTIMIZATION ROI REPORT</h1></header>
+
+    <div class="client-section">
+        <span style="white-space:nowrap; margin-right:15px; font-size: 14px; font-weight: bold;">FOR CLIENT:</span>
+        <input type="text" class="client-name" placeholder="貴社名を入力してください">
+    </div>
+
+    <section id="section-phase2">
+        <h2>Phase 01 | コスト・投資条件設定</h2>
+        <div class="calc-grid">
+            <div class="calc-inputs">
+                <div class="input-group">
+                    <label>所在地（23区単価目安）</label>
+                    <select id="tanka" onchange="calc()">
+                        <option value="42000">港区 (4.2万円)</option>
+                        <option value="40000">千代田区 (4.0万円)</option>
+                        <option value="38000">渋谷区 (3.8万円)</option>
+                        <option value="32000" selected>中央区 (3.2万円)</option>
+                        <option value="30000">新宿区 (3.0万円)</option>
+                        <option value="26000">品川区 (2.6万円)</option>
+                        <option value="24000">目黒区 (2.4万円)</option>
+                        <option value="22000">豊島区 (2.2万円)</option>
+                        <option value="15000">その他平均 (1.5万円)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>会議室数(4坪) / ブース数(0.5坪)</label>
+                    <div class="num-wrap">室：<input type="number" id="roomCount" value="10" oninput="calc()"> / 
+                    ブース：<input type="number" id="boothCount" value="4" oninput="calc()"></div>
+                </div>
+                <div class="input-group">
+                    <label>Reserve Any 初期費用 (円)</label>
+                    <div class="num-wrap"><input type="number" id="initCost" value="200000" step="10000" oninput="calc()"> <small>円</small></div>
+                </div>
+                <div class="input-group">
+                    <label>対象従業員数 (ID数×450円)</label>
+                    <input type="range" id="idSlide" min="10" max="1000" step="10" value="100" oninput="idCount.value=this.value; calc()">
+                    <div class="num-wrap"><input type="number" id="idCount" value="100" oninput="idSlide.value=this.value; calc()"> <small>名</small></div>
+                </div>
+                <div class="rate-inputs">
+                    <span class="rate-label">稼働率シミュレーション</span>
+                    <label style="font-size:10px;">現状率: <span id="bVal">60</span>% → 目標率: <span id="aVal">75</span>%</label>
+                    <input type="range" id="beforeSlide" min="10" max="90" value="60" oninput="bVal.innerText=this.value; calc()">
+                    <input type="range" id="afterSlide" min="10" max="100" value="75" oninput="aVal.innerText=this.value; calc()">
+                </div>
+                <div class="spec-box">
+                    月間の会議室維持費合計：<strong><span id="dispTotalOffice">0</span> 円</strong><br>
+                    Reserve Any 月額費用：<strong><span id="dispMonthlyTool">0</span> 円</strong>
+                </div>
+            </div>
+
+            <div class="result-side">
+                <div class="chart-box">
+                    <div class="chart-title">月間の収支比較 (円)</div>
+                    <div class="canvas-wrapper"><canvas id="costChart"></canvas></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">累積損益シミュレーション（損益分岐点）</div>
+                    <div class="canvas-wrapper tall"><canvas id="breakEvenChart"></canvas></div>
+                </div>
+                <div class="summary-box">
+                    <div class="roi-badge">1年間の期待ROI: <span id="roiPercent">0</span>%</div>
+                    <div class="res-row"><span>月間創出時間:</span><span class="res-val" id="dispHour">0 h</span></div>
+                    <div class="res-row total-saving">
+                        <span style="font-weight:bold;">正味の月間コスト回収効果:</span>
+                        <span class="res-val" id="dispNetSaving">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="section-phase3">
+        <h2>Phase 02 | 投資回収の分析</h2>
+        <div class="solution-area">
+            <div class="sol-item">
+                <span style="color:var(--navy); font-weight:bold; font-size:16px;">投資回収期間の目安： <span id="paybackMonth" style="color:var(--accent-red); font-size:1.4em;">-</span> ヶ月</span>
+                <p style="font-size:14px; margin-top:10px; line-height:1.6;">
+                    初期費用 <span id="txtInit">0</span>円に対し、毎月 <span id="txtNet">0</span>円分の資産価値を創出します。
+                    グラフの青線（累積価値）が赤線（累積コスト）を上回るポイントが損益分岐点です。
+                    以降は、毎月固定で支払っているオフィス維持費から、継続的に価値を創出し続ける「資産最適化状態」となります。
+                </p>
+            </div>
+        </div>
+        <footer class="footer-note">
+            作成日: <span id="currentDate"></span> | Reserve Any ROI Optimization Report
+        </footer>
+    </section>
+
+    <button class="print-btn" onclick="window.print()">レポートをPDF保存・印刷</button>
+</div>
+
+<script>
+    let costChart, breakEvenChart;
+
+    function calc() {
+        const tanka = parseInt(document.getElementById('tanka').value) || 0;
+        const rooms = parseInt(document.getElementById('roomCount').value) || 0;
+        const booths = parseInt(document.getElementById('boothCount').value) || 0;
+        const initCost = parseInt(document.getElementById('initCost').value) || 0;
+        const ids = parseInt(document.getElementById('idCount').value) || 0;
+        const bRate = parseInt(document.getElementById('beforeSlide').value) / 100;
+        const aRate = parseInt(document.getElementById('afterSlide').value) / 100;
+
+        const officeCost = tanka * ((rooms * 4) + (booths * 0.5));
+        const monthlyTool = ids * 450;
+        const grossSaving = officeCost * (aRate - bRate);
+        const netSaving = grossSaving - monthlyTool;
+
+        // 概要更新
+        document.getElementById('dispTotalOffice').innerText = officeCost.toLocaleString();
+        document.getElementById('dispMonthlyTool').innerText = monthlyTool.toLocaleString();
+        document.getElementById('dispNetSaving').innerText = netSaving.toLocaleString() + " 円";
+        document.getElementById('txtInit').innerText = initCost.toLocaleString();
+        document.getElementById('txtNet').innerText = netSaving.toLocaleString();
+        
+        const hDiff = Math.floor(((rooms + booths) * 8 * 20) * (aRate - bRate));
+        document.getElementById('dispHour').innerText = hDiff.toLocaleString() + " 時間";
+
+        // ROI (1年)
+        const yearlyRoi = initCost + (monthlyTool * 12) > 0 ? 
+            Math.round(((grossSaving * 12) / (initCost + (monthlyTool * 12))) * 100) : 0;
+        document.getElementById('roiPercent').innerText = yearlyRoi.toLocaleString();
+
+        // 回収月
+        const pbMonth = netSaving > 0 ? Math.ceil(initCost / netSaving) : "-";
+        document.getElementById('paybackMonth').innerText = pbMonth;
+
+        // グラフ1: 月間比較
+        if(costChart) {
+            costChart.data.datasets[0].data = [monthlyTool, grossSaving];
+            costChart.update();
+        }
+
+        // グラフ2: 累積損益
+        if(breakEvenChart) {
+            const labels = [0,1,2,3,4,5,6,7,8,9,10,11,12];
+            const costData = labels.map(m => initCost + (monthlyTool * m));
+            const valueData = labels.map(m => grossSaving * m);
+            breakEvenChart.data.datasets[0].data = costData;
+            breakEvenChart.data.datasets[1].data = valueData;
+            breakEvenChart.update();
+        }
+    }
+
+    window.onload = function() {
+        document.getElementById('currentDate').innerText = new Date().toLocaleDateString('ja-JP');
+        
+        costChart = new Chart(document.getElementById('costChart').getContext('2d'), {
+            type: 'bar',
+            data: { labels: ['月額利用料', '月間創出価値'], datasets: [{ data: [0, 0], backgroundColor: ['#1f3864', '#0070c0'], borderRadius: 4 }] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, 
+            scales: { x: { beginAtZero: true, display: false }, y: { grid: { display: false } } } }
+        });
+
+        breakEvenChart = new Chart(document.getElementById('breakEvenChart').getContext('2d'), {
+            type: 'line',
+            data: { 
+                labels: ['導入', '1ヶ月', '2ヶ月', '3ヶ月', '4ヶ月', '5ヶ月', '6ヶ月', '7ヶ月', '8ヶ月', '9ヶ月', '10ヶ月', '11ヶ月', '12ヶ月'],
+                datasets: [
+                    { label: '累積コスト(初期+月額)', data: [], borderColor: '#c00000', borderWidth: 2, pointRadius: 0, fill: false },
+                    { label: '累積創出価値', data: [], borderColor: '#0070c0', borderWidth: 3, pointRadius: 3, backgroundColor: 'rgba(0,112,192,0.1)', fill: true }
+                ]
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } },
+                scales: { y: { beginAtZero: true, ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } }
+            }
+        });
+        calc();
+    };
+</script>
+</body>
+</html>
